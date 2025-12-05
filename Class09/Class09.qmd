@@ -195,8 +195,8 @@ mktrj(pc.xray, file = "pc_results.pdb")
 ```
 
 ```{r}
-library(bio3dview)
+#library(bio3dview)
 
-view.pca(pc.xray)
+#view.pca(pc.xray)
 ```
 
