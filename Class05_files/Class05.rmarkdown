@@ -1,0 +1,152 @@
+---
+title: "Class05: Data Viz with GGPLOT"
+author: "Qingyun Zheng (A16338254)"
+format: pdf
+---
+
+Today we are gonna play with plotting and graphics in R.
+
+There are lots of ways to make cool figures in R.
+
+The most popular package is `ggplot2`, which is part of the `tidyverse` collection of packages. --copilot
+
+There is "base" R graphics (`plot()`, `hits()`, `boxplot()`, etc.).
+
+There is also add-on packages like **ggplot**
+
+To insert any code, click three 'back-tick's to mark the start of the code, or just click the green button above, that is to the left of the button `Run`.
+```{r}
+head(cars,3)
+```
+Let's plot this with "base" R:
+*option + command + I* would directly insert a code block.
+```{r}
+plot(cars)
+```
+```{r}
+head(mtcars)
+```
+
+Let's plot `mpg` vs `disp`:
+`pch` is plotting character, each representing a symbol.
+```{r}
+plot(mtcars$mpg, mtcars$disp, pch=10)
+```
+
+```{r}
+hist(mtcars$mpg)
+```
+
+## GGPLOT (the pkg itself is called ggplot2)
+
+The main function in the ggplot2 package is **ggplot()**. First, I need to install the **ggplot2** package. To do this, I can install any package with the function `install.packages("ggplot2")`. 
+
+Then I need to load the package with `library(ggplot2)`.
+
+>**N.B** I never want to run `install.packages()` in my quarto source document!! If I do that, every time I render the document, it will try to install the package again. I only need to install a package once on my computer.
+
+`library()` loads the package into my current R session.
+
+```{r}
+library(ggplot2)
+ggplot(cars)+aes(x=speed, y = dist) + geom_point()+ geom_smooth(method = "lm", se = FALSE)
+```
+### Adding more layers
+
+let's add a line and a title, subtitle an caption as well as custom axis labels
+```{r}
+library(ggplot2)
+ggplot(cars)+aes(x=speed, y = dist) + geom_point()+ geom_smooth(method = "lm", se = FALSE) + labs(title = "Smarty Plot", x = "Speed (MPH)", y = "Distance (ft)", caption = "when is tea time anyways?") + theme_bw()
+```
+```{r}
+ggplot(cars)+aes(x=speed, y = dist) + geom_point(color = "cyan", size = 3, shape = 17)+ geom_smooth(method = "lm", se = FALSE, color = "pink") + labs(title = "Smarty Plot", x = "Speed (MPH)", y = "Distance (ft)", caption = "when is tea time anyways?") + theme_bw()
+```
+
+###Read a file from the web
+
+```{r}
+url <- "https://bioboot.github.io/bimm143_S20/class-material/up_down_expression.txt"
+genes <- read.delim(url)
+head(genes)
+```
+> Q1. How many genes are in this wee dataset?
+
+There are `r nrow(genes)` genes in this wee dataset
+
+> Q2. How many "up" regulated genes are there?
+
+```{r}
+sum(genes$State == "up")
+```
+There are `r sum(genes$State == "up")` upregulated genes.
+
+```{r}
+table(genes$State)
+```
+
+```{r}
+ggplot(genes) + 
+    aes(x=Condition1, 
+        y= Condition2, 
+        col = State,
+        label = Gene) +
+    geom_point() +
+  geom_text() +
+    theme_bw()
+```
+```{r}
+p <- ggplot(genes) + 
+    aes(x=Condition1, y= Condition2, col = State) +
+    geom_point(pch = 4, size = 1) +
+    scale_color_manual(values = c("blue", "gray", "red"))
+```
+
+```{r}
+p + labs(title = "Gene")
+```
+```{r}
+library(ggrepel)
+ggplot(genes) + 
+    aes(x=Condition1, y= Condition2, col = State,
+        label = Gene) +
+    geom_point(pch = 4, size = 1) +
+    scale_color_manual(values = c("blue", "gray", "red")) +
+  geom_text_repel(max.overlaps = 60) +
+  theme_bw()
+```
+
+```{r}
+url <- "https://raw.githubusercontent.com/jennybc/gapminder/master/inst/extdata/gapminder.tsv"
+
+gapminder <- read.delim(url)
+```
+
+```{r}
+head(gapminder)
+tail(gapminder)
+```
+```{r}
+p1 <- ggplot(gapminder) + 
+  aes(gdpPercap, lifeExp, col = continent) + 
+  geom_point() +
+  facet_wrap(~continent) + 
+  theme_bw()
+p1
+```
+
+```{r}
+p2 <- ggplot(gapminder) +
+  aes(gdpPercap, lifeExp, col = continent) + 
+  geom_area() + geom_smooth() + 
+  scale_color_manual(values = c("blue", "green", "orange", "red", "purple"))
+
+p2
+  
+```
+
+```{r}
+library(patchwork)
+{p1 / p2}
+```
+ 
+
