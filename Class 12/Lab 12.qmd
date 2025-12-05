@@ -1,0 +1,192 @@
+---
+title: "Lab 12 RNAseq with DESeq2"
+author: "Qingyun Zheng (A16338254)"
+format: pdf
+toc: true
+---
+
+
+## Background
+
+Today we will analyze some RNAseq data from Himes et al. on the effects of a common steroid dexamethasone (DEX) on airway smooth muscle cells (ASMs). 
+
+For this analysis we need two main inputs: 
+
+- `countData`: a table of counts per gene (in rows) accross experiments (in columns)
+- `colData`: metadata about the design of the experiments. The rows match the columns in `countData`
+
+
+## Data Import
+
+```{r}
+counts <- read.csv("airway_scaledcounts.csv", row.names=1)
+metadata <- read.csv("airway_metadata.csv", row.names=1)
+```
+
+Let's take a look at the `counts` data
+
+```{r}
+head(counts)
+```
+and the `metadata`:
+
+```{r}
+metadata
+```
+
+> Q1. How many "genes" are in the dataset?
+
+```{r}
+nrow(counts)
+```
+
+> Q2. How many experiments (i.e. columns in `counts` or rows in `metadata`) are in the dataset?
+
+```{r}
+ncol(counts)
+nrow(metadata)
+```
+
+> Q3. How many control experiments are in the dataset?
+
+```{r}
+sum(metadata$dex == "control")
+```
+
+1. Extract the "control" columns from `counts`
+2. Calculate the mean value for each gene in these "control columns"
+3-4. Do the same for the "treated" columns
+5. Compare the means
+
+```{r}
+#Step 1
+ctrl.inds <- metadata$dex == "control"
+ctrl.counts <- counts[, ctrl.inds]
+
+#Step 2
+ctrl.means <- rowMeans(ctrl.counts)
+
+#Step 3-4
+treated.inds <- metadata$dex == "treated"
+treated.counts <- counts[, treated.inds]
+treated.means <- rowMeans(treated.counts)
+
+#Step 5
+ctrl.means > treated.means
+```
+
+
+```{r}
+meancounts <- data.frame(ctrl.means, treated.means)
+head(meancounts)
+```
+
+```{r}
+plot(meancounts, log = "xy")
+```
+```{r}
+library(ggplot2)
+ggplot(meancounts, aes(x=ctrl.means, y=treated.means)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+```
+
+We use log 2 "fold-change" as a way to compare
+
+```{r}
+meancounts$log2fc <- log2(meancounts$treated.means / meancounts$ctrl.means)
+zero.vals <- which(meancounts[,1:2]==0, arr.ind=TRUE)
+to.rm <- unique(zero.vals[,1])
+mycounts <- meancounts[-to.rm,]
+head(mycounts)
+```
+
+A common "rule of thumb" thresshold for calling something "up-regulated" is a log2-fold-change of +2 or greater. For "down-regulated" it is -2 or less.
+
+> Q. How many genes are up-regulated?
+
+```{r}
+sum(mycounts$log2fc >= 2)
+```
+
+> Q. How many genes are down-regulated?
+
+```{r}
+sum(mycounts$log2fc <= -2)
+```
+
+```{r}
+head(which(meancounts[, 1:2] == 0, arr.in=T))
+```
+
+```{r}
+zero.inds <- which(meancounts[,1:2] == 0, arr.ind=TRUE)[,1] #get the row info only
+mygenes <- meancounts[-zero.inds, ] #remove those rows with 0 values
+```
+
+```{r}
+sum(mygenes$log2fc >= 2)
+```
+
+
+## DESeq2 Analysis
+
+Let's do this with DESeq2 and put some stats behind these numbers.
+
+```{r, message = FALSE}
+library(DESeq2)
+```
+
+DESeq wants 3 things for analysis, countData, ColData, and design.
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                      colData = metadata,
+                      design = ~ dex)
+```
+
+The main function is the DESeq package to run analysis is called `DESeq()`
+
+```{r}
+dds <- DESeq(dds)
+```
+
+Get the results out of this DESeq object with the function `results()`
+
+```{r}
+res <- results(dds)
+head(res)
+```
+
+## Volcano Plot
+
+This is a plot of log2FC vs adjusted p-value
+
+```{r}
+plot(res$log2FoldChange, -log(res$padj))
+abline(v=c(-2,2), col = "red")
+abline(h = -log(0.05), col = "red")
+```
+## A nicer ggplot volcano plot
+
+```{r}
+mycols <- rep("gray", nrow(res))
+mycols[abs(res$log2FoldChange) > 2] <- "blue"
+mycols[res$padj >= 0.05] <- "gray"
+
+ggplot(res, aes(log2FoldChange, -log(res$padj))) +
+  geom_point(col = mycols) +
+  geom_hline(yintercept = -log(0.05), col = "red")+
+  geom_vline(xintercept = c(-2,2), col = "green")
+```
+
+
+## Save our Results
+
+```{r}
+write.csv(res, file="myresults.csv")
+```
+
+
+
